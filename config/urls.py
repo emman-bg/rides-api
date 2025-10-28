@@ -20,6 +20,7 @@ from django.urls import include, path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include('rides.urls')),
 ]
 
 # Add Django Debug Toolbar URLs in DEBUG mode
