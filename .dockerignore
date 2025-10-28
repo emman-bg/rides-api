@@ -1,0 +1,22 @@
+# Python
+venv/
+*.pyc
+__pycache__/
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+
+# Database
+*.sqlite3
+db.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+
+# Generated files
+staticfiles/
