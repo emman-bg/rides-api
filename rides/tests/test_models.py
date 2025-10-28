@@ -1,12 +1,10 @@
 from django.test import TestCase
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.utils import timezone
 from datetime import timedelta
-from .models import User, Ride, RideEvent
+from ..models import User, Ride, RideEvent
 
 
-class UserModelTest(TestCase):
+class UserModelTestCase(TestCase):
     """Test cases for the User model."""
 
     def setUp(self):
@@ -77,7 +75,7 @@ class UserModelTest(TestCase):
         self.assertTrue(hasattr(user, 'date_joined'))
 
 
-class RideModelTest(TestCase):
+class RideModelTestCase(TestCase):
     """Test cases for the Ride model."""
 
     def setUp(self):
@@ -201,7 +199,7 @@ class RideModelTest(TestCase):
         self.assertIsInstance(ride.dropoff_longitude, float)
 
 
-class RideEventModelTest(TestCase):
+class RideEventModelTestCase(TestCase):
     """Test cases for the RideEvent model."""
 
     def setUp(self):
