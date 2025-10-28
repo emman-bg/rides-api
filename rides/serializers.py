@@ -55,11 +55,9 @@ class UserSmallListSerializer(serializers.ModelSerializer):
 class RideSerializer(serializers.ModelSerializer):
     """Serializer for the Ride model."""
 
-    # Nested serializers to show user details
     rider = UserSmallListSerializer(source='id_rider', read_only=True)
     driver = UserSmallListSerializer(source='id_driver', read_only=True)
 
-    # Write-only fields for creating/updating
     id_rider = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
         write_only=True
@@ -87,24 +85,6 @@ class RideSerializer(serializers.ModelSerializer):
         read_only_fields = ['id_ride']
 
 
-class RideListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for listing rides."""
-
-    rider_username = serializers.CharField(source='id_rider.username', read_only=True)
-    driver_username = serializers.CharField(source='id_driver.username', read_only=True)
-
-    class Meta:
-        model = Ride
-        fields = [
-            'id_ride',
-            'status',
-            'rider_username',
-            'driver_username',
-            'pickup_time',
-        ]
-        read_only_fields = ['id_ride']
-
-
 class RideEventSerializer(serializers.ModelSerializer):
     """Serializer for the RideEvent model."""
 
@@ -117,6 +97,23 @@ class RideEventSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = ['id_ride_event', 'created_at']
+
+
+class RideListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing rides."""
+    events = RideEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Ride
+        fields = [
+            'id_ride',
+            'status',
+            'id_rider',
+            'id_driver',
+            'pickup_time',
+            'events',
+        ]
+        read_only_fields = ['id_ride']
 
 
 class RideDetailSerializer(serializers.ModelSerializer):
