@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils import timezone
+from datetime import timedelta
 from .models import User, Ride, RideEvent
 
 
@@ -339,3 +340,172 @@ class RideEventModelTest(TestCase):
             )
 
         self.assertEqual(self.ride.events.count(), 5)
+
+    def test_default_queryset_returns_past_24_hours(self):
+        """Test that RideEvent.objects.all() returns only events from past 24 hours."""
+        # Create an event from now (should be included)
+        recent_event = RideEvent.objects.create(
+            id_ride=self.ride,
+            description='Recent event'
+        )
+
+        # Get all events using default queryset
+        events = RideEvent.objects.all()
+
+        # Should include the recent event
+        self.assertIn(recent_event, events)
+
+    def test_old_events_excluded_by_default(self):
+        """Test that events older than 24 hours are excluded by default."""
+        # Create an old event by manually setting created_at
+        old_event = RideEvent(
+            id_ride=self.ride,
+            description='Old event'
+        )
+        old_event.save()
+
+        # Manually update created_at to 25 hours ago (after creation)
+        old_time = timezone.now() - timedelta(hours=25)
+        RideEvent.objects.filter(id_ride_event=old_event.id_ride_event).update(created_at=old_time)
+
+        # Create a recent event
+        recent_event = RideEvent.objects.create(
+            id_ride=self.ride,
+            description='Recent event'
+        )
+
+        # Default queryset should only return recent event
+        events = list(RideEvent.objects.all())
+        self.assertIn(recent_event, events)
+        self.assertNotIn(old_event, events)
+
+    def test_all_unfiltered_returns_all_events(self):
+        """Test that all_unfiltered() returns all events regardless of time."""
+        # Create an old event
+        old_event = RideEvent(
+            id_ride=self.ride,
+            description='Old event'
+        )
+        old_event.save()
+
+        # Manually update created_at to 25 hours ago
+        old_time = timezone.now() - timedelta(hours=25)
+        RideEvent.objects.filter(id_ride_event=old_event.id_ride_event).update(created_at=old_time)
+
+        # Create a recent event
+        recent_event = RideEvent.objects.create(
+            id_ride=self.ride,
+            description='Recent event'
+        )
+
+        # all_unfiltered should return both events
+        all_events = list(RideEvent.objects.all_unfiltered())
+        self.assertEqual(len(all_events), 2)
+        self.assertIn(old_event, all_events)
+        self.assertIn(recent_event, all_events)
+
+    def test_for_ride_returns_all_events_for_ride(self):
+        """Test that for_ride() returns all events for a specific ride, regardless of time."""
+        # Create an old event for the ride
+        old_event = RideEvent(
+            id_ride=self.ride,
+            description='Old event'
+        )
+        old_event.save()
+
+        # Manually update created_at to 25 hours ago
+        old_time = timezone.now() - timedelta(hours=25)
+        RideEvent.objects.filter(id_ride_event=old_event.id_ride_event).update(created_at=old_time)
+
+        # Create a recent event
+        recent_event = RideEvent.objects.create(
+            id_ride=self.ride,
+            description='Recent event'
+        )
+
+        # Create another ride with an event
+        other_rider = User.objects.create_user(
+            username='rider2',
+            email='rider2@example.com',
+            first_name='Rider',
+            last_name='Two',
+            role='passenger',
+            password='pass123'
+        )
+        other_ride = Ride.objects.create(
+            status='en-route',
+            id_rider=other_rider,
+            id_driver=self.driver,
+            pickup_latitude=40.7128,
+            pickup_longitude=-74.0060,
+            dropoff_latitude=40.7580,
+            dropoff_longitude=-73.9855,
+            pickup_time=timezone.now(),
+        )
+        other_event = RideEvent.objects.create(
+            id_ride=other_ride,
+            description='Other ride event'
+        )
+
+        # for_ride should return all events for this specific ride only
+        ride_events = list(RideEvent.objects.for_ride(self.ride))
+        self.assertEqual(len(ride_events), 2)
+        self.assertIn(old_event, ride_events)
+        self.assertIn(recent_event, ride_events)
+        self.assertNotIn(other_event, ride_events)
+
+    def test_ride_events_relationship_respects_manager(self):
+        """Test that ride.events.all() also uses custom manager (24-hour filter)."""
+        # Create an old event
+        old_event = RideEvent(
+            id_ride=self.ride,
+            description='Old event'
+        )
+        old_event.save()
+
+        # Manually update created_at to 25 hours ago
+        old_time = timezone.now() - timedelta(hours=25)
+        RideEvent.objects.filter(id_ride_event=old_event.id_ride_event).update(created_at=old_time)
+
+        # Create a recent event
+        recent_event = RideEvent.objects.create(
+            id_ride=self.ride,
+            description='Recent event'
+        )
+
+        # ride.events.all() also uses the custom manager, so only recent event
+        ride_events = list(self.ride.events.all())
+        self.assertEqual(len(ride_events), 1)
+        self.assertIn(recent_event, ride_events)
+        self.assertNotIn(old_event, ride_events)
+
+        # To get all events for a ride, use for_ride()
+        all_ride_events = list(RideEvent.objects.for_ride(self.ride))
+        self.assertEqual(len(all_ride_events), 2)
+        self.assertIn(old_event, all_ride_events)
+        self.assertIn(recent_event, all_ride_events)
+
+    def test_filter_on_default_queryset_respects_24_hour_limit(self):
+        """Test that additional filters on default queryset still respect 24-hour limit."""
+        # Create an old event
+        old_event = RideEvent(
+            id_ride=self.ride,
+            description='Old pickup event'
+        )
+        old_event.save()
+
+        # Manually update created_at to 25 hours ago
+        old_time = timezone.now() - timedelta(hours=25)
+        RideEvent.objects.filter(id_ride_event=old_event.id_ride_event).update(created_at=old_time)
+
+        # Create a recent event with same keyword
+        recent_event = RideEvent.objects.create(
+            id_ride=self.ride,
+            description='Recent pickup event'
+        )
+
+        # Filter should only return recent event
+        filtered_events = list(RideEvent.objects.filter(description__icontains='pickup'))
+        self.assertEqual(len(filtered_events), 1)
+        self.assertIn(recent_event, filtered_events)
+        self.assertNotIn(old_event, filtered_events)

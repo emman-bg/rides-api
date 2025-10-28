@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
 
 
 class User(AbstractUser):
@@ -54,6 +56,23 @@ class Ride(models.Model):
         return f"Ride #{self.id_ride} - {self.status} (Rider: {self.id_rider.username}, Driver: {self.id_driver.username})"
 
 
+class RideEventManager(models.Manager):
+    """Custom manager for RideEvent with strict 24-hour filter."""
+
+    def get_queryset(self):
+        """Return queryset filtered to past 24 hours by default."""
+        twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
+        return super().get_queryset().filter(created_at__gte=twenty_four_hours_ago)
+
+    def all_unfiltered(self):
+        """Get all events without time filter. Use with caution."""
+        return super().get_queryset().all()
+
+    def for_ride(self, ride):
+        """Get all events for a specific ride (no time filter)."""
+        return super().get_queryset().filter(id_ride=ride)
+
+
 class RideEvent(models.Model):
     """RideEvent model representing events that occur during a ride."""
 
@@ -66,6 +85,8 @@ class RideEvent(models.Model):
     )
     description = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = RideEventManager()
 
     class Meta:
         ordering = ['-created_at']
