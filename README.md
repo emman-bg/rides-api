@@ -1,4 +1,4 @@
-# Backend Project
+# Rides API
 
 A Django REST Framework API project for collaboration and peer review.
 
@@ -24,7 +24,7 @@ A Django REST Framework API project for collaboration and peer review.
 ## Project Structure
 
 ```
-backend/
+rides-api/
 ├── config/                 # Django project configuration
 │   ├── settings.py        # Project settings
 │   ├── urls.py            # URL routing
@@ -43,7 +43,7 @@ backend/
 
 ```bash
 git clone <repository-url>
-cd backend
+cd rides-api
 ```
 
 ### 2. Environment Configuration
@@ -74,7 +74,7 @@ The application will be available at:
 ### 4. Create a Superuser (Optional)
 
 ```bash
-docker compose exec backend python manage.py createsuperuser
+docker compose exec rides-api python manage.py createsuperuser
 ```
 
 ## Development Workflow
@@ -89,7 +89,7 @@ docker compose up
 docker compose down
 
 # View logs
-docker compose logs -f backend
+docker compose logs -f rides-api
 
 # Rebuild after dependency changes
 docker compose up --build
@@ -99,10 +99,10 @@ docker compose up --build
 
 ```bash
 # Create migrations
-docker compose exec backend python manage.py makemigrations
+docker compose exec rides-api python manage.py makemigrations
 
 # Apply migrations
-docker compose exec backend python manage.py migrate
+docker compose exec rides-api python manage.py migrate
 
 # Migrations run automatically on container startup
 ```
@@ -110,18 +110,18 @@ docker compose exec backend python manage.py migrate
 ### Django Shell
 
 ```bash
-docker compose exec backend python manage.py shell
+docker compose exec rides-api python manage.py shell
 ```
 
 ### Running Tests
 
 ```bash
-docker compose exec backend python manage.py test
+docker compose exec rides-api python manage.py test
 ```
 
 ## Services
 
-### Backend Service
+### Rides API Service
 - **Port**: 8000
 - **Command**: `python manage.py runserver 0.0.0.0:8000`
 - **Features**: Auto-reload on code changes
