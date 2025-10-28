@@ -151,13 +151,8 @@ class RideEventViewSet(viewsets.ModelViewSet):
     lookup_field = 'id_ride_event'
 
     def get_queryset(self):
-        queryset = RideEvent.objects.select_related(
+        return RideEvent.objects.select_related(
             'id_ride',
             'id_ride__id_rider',
             'id_ride__id_driver'
         )
-    
-        if self.action in ['list', 'retrieve']:
-            queryset = queryset.prefetch_related('events')
-
-        return queryset
