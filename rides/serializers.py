@@ -107,6 +107,10 @@ class RideSerializer(serializers.ModelSerializer):
 class RideEventSerializer(serializers.ModelSerializer):
     """Serializer for the RideEvent model."""
 
+    id_ride = serializers.PrimaryKeyRelatedField(
+        queryset=Ride.objects.select_related('id_rider', 'id_driver')
+    )
+
     class Meta:
         model = RideEvent
         fields = [
