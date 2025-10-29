@@ -157,7 +157,7 @@ class RideEventViewSet(viewsets.ModelViewSet):
     """
     ViewSet for RideEvent model with full CRUD operations and optimized queries.
 
-    list: Get all events (past 24 hours by default)
+    list: Get all events (past 24 hours by default, paginated)
     retrieve: Get event details
     create: Create a new event
     update: Update event (PUT)
@@ -170,6 +170,8 @@ class RideEventViewSet(viewsets.ModelViewSet):
     serializer_class = RideEventSerializer
 
     lookup_field = 'id_ride_event'
+
+    pagination_class = CachedCountLimitOffsetPagination
 
     permission_classes = [IsAdmin]
 

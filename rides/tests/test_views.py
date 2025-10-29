@@ -543,7 +543,8 @@ class RideEventViewSetTestCase(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertIn('results', response.data)
+        self.assertEqual(len(response.data['results']), 1)
 
     def test_list_ride_events_excludes_old(self):
         """Test that events older than 24 hours are excluded."""
@@ -563,8 +564,9 @@ class RideEventViewSetTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should only return the recent event
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['description'], 'Driver arrived at pickup')
+        self.assertIn('results', response.data)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['description'], 'Driver arrived at pickup')
 
     def test_retrieve_ride_event(self):
         """Test GET /api/ride-events/{id}/ - Get event details."""
