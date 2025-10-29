@@ -54,7 +54,10 @@ class UserViewSetTestCase(APITestCase):
         self.assertNotIn('password', response.data)
 
     def test_create_user(self):
-        """Test POST /api/users/ - Create new user."""
+        """Test POST /api/users/ - Create new user (public registration)."""
+        # Remove authentication to test public registration
+        self.client.force_authenticate(user=None)
+
         url = '/api/users/'
         data = {
             'username': 'newuser',
@@ -72,6 +75,45 @@ class UserViewSetTestCase(APITestCase):
         new_user = User.objects.get(username='newuser')
         self.assertEqual(new_user.email, 'newuser@example.com')
         self.assertTrue(new_user.check_password('securepass123'))
+
+    def test_create_user_defaults_to_passenger(self):
+        """Test POST /api/users/ - Create user without role defaults to passenger."""
+        self.client.force_authenticate(user=None)
+
+        url = '/api/users/'
+        data = {
+            'username': 'newpassenger',
+            'email': 'passenger@example.com',
+            'password': 'securepass123',
+            'first_name': 'New',
+            'last_name': 'Passenger',
+            'phone_number': '+1111111111'
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        new_user = User.objects.get(username='newpassenger')
+        self.assertEqual(new_user.role, 'passenger')
+
+    def test_create_admin_user_forbidden(self):
+        """Test POST /api/users/ - Cannot create admin user via API."""
+        self.client.force_authenticate(user=None)
+
+        url = '/api/users/'
+        data = {
+            'username': 'newadmin',
+            'email': 'newadmin@example.com',
+            'password': 'securepass123',
+            'first_name': 'New',
+            'last_name': 'Admin',
+            'role': 'admin',
+            'phone_number': '+9999999999'
+        }
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('role', response.data)
+        self.assertIn('admin', str(response.data['role'][0]).lower())
 
     def test_update_user(self):
         """Test PUT /api/users/{id}/ - Update user."""
@@ -111,8 +153,8 @@ class UserViewSetTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(User.objects.count(), 1)  # Only admin remains
 
-    def test_non_admin_cannot_access(self):
-        """Test that non-admin users cannot access user endpoints."""
+    def test_non_admin_cannot_access_list(self):
+        """Test that non-admin users cannot access user list endpoint."""
         # Create a non-admin user
         passenger = User.objects.create_user(
             username='passenger1',
@@ -126,19 +168,49 @@ class UserViewSetTestCase(APITestCase):
         # Authenticate as non-admin
         self.client.force_authenticate(user=passenger)
 
+        # Test list action
         url = '/api/users/'
         response = self.client.get(url)
-
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_unauthenticated_cannot_access(self):
-        """Test that unauthenticated users cannot access user endpoints."""
+        # Test retrieve action
+        url = f'/api/users/{self.user.id_user}/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Test update action
+        url = f'/api/users/{self.user.id_user}/'
+        response = self.client.patch(url, {'role': 'driver'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Test delete action
+        url = f'/api/users/{self.user.id_user}/'
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_cannot_access_list(self):
+        """Test that unauthenticated users cannot access protected user endpoints."""
         # Remove authentication
         self.client.force_authenticate(user=None)
 
+        # Test list action (should be unauthorized)
         url = '/api/users/'
         response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+        # Test retrieve action (should be unauthorized)
+        url = f'/api/users/{self.user.id_user}/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Test update action (should be unauthorized)
+        url = f'/api/users/{self.user.id_user}/'
+        response = self.client.patch(url, {'role': 'driver'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Test delete action (should be unauthorized)
+        url = f'/api/users/{self.user.id_user}/'
+        response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 

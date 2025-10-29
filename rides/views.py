@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import F
@@ -21,14 +21,15 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     ViewSet for User model with full CRUD operations.
 
-    list: Get all users (lightweight)
-    retrieve: Get user details
-    create: Create a new user
-    update: Update user (PUT)
-    partial_update: Partially update user (PATCH)
-    destroy: Delete user
+    list: Get all users (lightweight) - Admin only
+    retrieve: Get user details - Admin only
+    create: Create a new user - Public (no auth required)
+    update: Update user (PUT) - Admin only
+    partial_update: Partially update user (PATCH) - Admin only
+    destroy: Delete user - Admin only
 
-    Requires: Admin role
+    Note: Public registration only allows creating passenger/driver roles.
+    Admin users must be created via Django management command.
     """
 
     queryset = User.objects.all()
@@ -37,7 +38,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
     lookup_field = 'id_user'
 
-    permission_classes = [IsAdmin]
+    def get_permissions(self):
+        """
+        Allow public user registration, but require admin for all other actions.
+        """
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return [IsAdmin()]
 
     def get_serializer_class(self):
         if self.action == 'create':

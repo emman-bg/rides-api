@@ -22,9 +22,19 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating a new user."""
+    """
+    Serializer for creating a new user (public registration).
+
+    Only allows creating passenger or driver roles.
+    Admin users must be created via Django management command.
+    """
 
     password = serializers.CharField(write_only=True, min_length=8)
+    role = serializers.ChoiceField(
+        choices=['passenger', 'driver'],
+        default='passenger',
+        help_text="User role: passenger or driver (admin not allowed)"
+    )
 
     class Meta:
         model = User
@@ -37,6 +47,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'role',
             'phone_number',
         ]
+
+    def validate_role(self, value):
+        """Prevent creating admin users via public API."""
+        if value == 'admin':
+            raise serializers.ValidationError(
+                "Cannot create admin users via API. "
+                "Admin users must be created using Django management command."
+            )
+        return value
 
     def create(self, validated_data):
         """Create a new user with encrypted password."""
