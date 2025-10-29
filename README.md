@@ -20,12 +20,13 @@ A Django REST Framework API for managing ride-sharing operations, including user
 ## Features
 
 - **Token Authentication** - Secure API access with token-based auth
-- **Role-Based Access Control** - Admin-only access to all endpoints
+- **Public User Registration** - Anyone can register as passenger/driver (admin creation via CLI only)
+- **Role-Based Access Control** - Admin-only access to management endpoints
 - **Advanced Filtering** - Filter rides by status and rider email
 - **Distance-Based Sorting** - Sort rides by distance to pickup location using Haversine formula
 - **Optimized Queries** - Uses `select_related` and `prefetch_related` for efficient database access
 - **Cached Pagination** - LimitOffset pagination with 5-minute cached counts
-- **Automated Testing** - 80 comprehensive tests with GitHub Actions CI/CD
+- **Automated Testing** - 82 comprehensive tests with GitHub Actions CI/CD
 - **Management Commands** - Quick data population for testing
 
 ## Prerequisites
@@ -51,7 +52,7 @@ rides-api/
 │   ├── tests/                    # Test suite
 │   │   ├── test_models.py        # Model tests (32 tests)
 │   │   ├── test_serializers.py   # Serializer tests (19 tests)
-│   │   └── test_views.py         # View tests (29 tests)
+│   │   └── test_views.py         # View tests (31 tests)
 │   ├── models.py                 # User, Ride, RideEvent models
 │   ├── serializers.py            # DRF serializers
 │   ├── views.py                  # ViewSets with CRUD operations
@@ -120,7 +121,7 @@ This creates:
 - 10 riders (passenger_1 through passenger_10)
 - 10 drivers (driver_1 through driver_10)
 - 50 rides with random data
-- 50 ride events linked to rides
+- 250 ride events (5 events per ride with proper status transitions)
 
 ## Makefile Commands
 
@@ -131,8 +132,8 @@ make help       # Show all available commands
 make up         # Start Docker containers
 make down       # Stop Docker containers
 make migrate    # Run database migrations
-make test       # Run all tests (80 tests)
-make populate   # Populate database with 50 rides and 50 events
+make test       # Run all tests (82 tests)
+make populate   # Populate database with 50 rides and 250 events
 make clean      # Remove all rides and events from database
 make shell      # Open Django shell
 make logs       # View Docker logs
@@ -195,13 +196,14 @@ Content-Type: application/json
 ```
 
 **Authentication Required:**
-All API endpoints require token authentication. Include the token in the header:
+Most API endpoints require token authentication. Include the token in the header:
 ```
 Authorization: Token abc123...
 ```
 
-**Permission:**
-All endpoints require `role='admin'`.
+**Permissions:**
+- **User Registration (POST /api/users/)**: Public - No authentication required
+- **All Other Endpoints**: Admin only - Requires `role='admin'`
 
 ---
 
@@ -221,10 +223,9 @@ GET /api/users/{id_user}/
 Authorization: Token abc123...
 ```
 
-#### Create User
+#### Create User (Public Registration)
 ```http
 POST /api/users/
-Authorization: Token abc123...
 Content-Type: application/json
 
 {
@@ -237,6 +238,8 @@ Content-Type: application/json
     "phone_number": "1234567890"
 }
 ```
+
+**Note:** This endpoint is **public** (no authentication required). Users can register as `passenger` or `driver` only. Admin users must be created via `python manage.py createsuperuser`.
 
 #### Update User
 ```http
@@ -394,7 +397,7 @@ The API uses the **Haversine formula** for distance calculation:
 
 ## Testing
 
-The project includes 80 comprehensive tests:
+The project includes 82 comprehensive tests:
 
 ### Run All Tests
 ```bash
@@ -406,7 +409,7 @@ docker compose exec rides-api python manage.py test rides
 ### Test Structure
 - **Model Tests** (32 tests) - Test User, Ride, RideEvent models and custom managers
 - **Serializer Tests** (19 tests) - Test all serializers and validation
-- **View Tests** (29 tests) - Test CRUD operations, filtering, ordering, pagination, and authentication
+- **View Tests** (31 tests) - Test CRUD operations, filtering, ordering, pagination, authentication, and public registration
 
 ### GitHub Actions CI/CD
 
@@ -415,7 +418,7 @@ The project uses GitHub Actions for automated testing on every push and pull req
 1. Sets up Python 3.10 and PostgreSQL 15
 2. Installs dependencies
 3. Runs migrations
-4. Executes all 80 tests
+4. Executes all 82 tests
 5. Reports results in the GitHub Actions tab
 
 **Workflow File:** `.github/workflows/tests.yml`
@@ -484,7 +487,7 @@ make shell
 ### Populate Test Data
 
 ```bash
-# Add 50 rides and 50 events
+# Add 50 rides and 250 events (5 per ride)
 make populate
 
 # Clear all rides and events
@@ -658,7 +661,7 @@ ORDER BY
   - Consider using gunicorn/uwsgi instead of runserver
   - Set up HTTPS with a reverse proxy (nginx/Apache)
 
-- **Authentication**: All API endpoints require token authentication and admin role
+- **Authentication**: Most API endpoints require token authentication and admin role (except public user registration)
 
 ## License
 
