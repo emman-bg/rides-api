@@ -102,7 +102,7 @@ class RideEventAdmin(admin.ModelAdmin):
         'description',
         'created_at'
     ]
-    
+
     list_filter = ['created_at']
 
     search_fields = ['description', 'id_ride__id_ride']
@@ -116,3 +116,7 @@ class RideEventAdmin(admin.ModelAdmin):
             'fields': ('id_ride', 'description', 'created_at')
         }),
     )
+
+    def get_queryset(self, request):
+        """Override to show all events in admin, not just past 24 hours."""
+        return RideEvent.objects.all_unfiltered()
