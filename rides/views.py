@@ -5,6 +5,7 @@ from django.db.models import F
 from django.db.models.functions import ACos, Cos, Radians, Sin
 from .models import User, Ride, RideEvent
 from .pagination import CachedCountLimitOffsetPagination
+from .permissions import IsAdmin
 from .serializers import (
     UserSerializer,
     UserCreateSerializer,
@@ -26,6 +27,8 @@ class UserViewSet(viewsets.ModelViewSet):
     update: Update user (PUT)
     partial_update: Partially update user (PATCH)
     destroy: Delete user
+
+    Requires: Admin role
     """
 
     queryset = User.objects.all()
@@ -33,6 +36,8 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
 
     lookup_field = 'id_user'
+
+    permission_classes = [IsAdmin]
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -57,6 +62,10 @@ class RideViewSet(viewsets.ModelViewSet):
     - status: Filter by ride status (en-route, pickup, dropoff)
     - id_rider__email: Filter by rider email
 
+    Examples:
+    - GET /rides/?status=pickup
+    - GET /rides/?email=test@gmail.com
+
     Ordering:
     - pickup_time: Sort by pickup time (add '-' for descending)
     - distance: Sort by distance to pickup (requires lat and lng params)
@@ -66,6 +75,8 @@ class RideViewSet(viewsets.ModelViewSet):
     - GET /rides/?ordering=-pickup_time (descending)
     - GET /rides/?ordering=distance&lat=40.7128&lng=-74.0060
     - GET /rides/?ordering=-distance&lat=40.7128&lng=-74.0060
+
+    Requires: Admin role
     """
 
     serializer_class = RideSerializer
@@ -74,6 +85,7 @@ class RideViewSet(viewsets.ModelViewSet):
 
     pagination_class = CachedCountLimitOffsetPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
+    permission_classes = [IsAdmin] 
     
     filterset_fields = ['status', 'id_rider__email']
     ordering_fields = ['pickup_time', 'distance']
@@ -144,11 +156,15 @@ class RideEventViewSet(viewsets.ModelViewSet):
     update: Update event (PUT)
     partial_update: Partially update event (PATCH)
     destroy: Delete event
+
+    Requires: Admin role
     """
 
     serializer_class = RideEventSerializer
 
     lookup_field = 'id_ride_event'
+
+    permission_classes = [IsAdmin]
 
     def get_queryset(self):
         return RideEvent.objects.select_related(

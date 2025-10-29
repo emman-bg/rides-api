@@ -11,6 +11,17 @@ class UserViewSetTestCase(APITestCase):
 
     def setUp(self):
         """Set up test data."""
+        self.admin = User.objects.create_user(
+            username='admin',
+            email='admin@example.com',
+            first_name='Admin',
+            last_name='User',
+            role='admin',
+            password='admin123'
+        )
+
+        self.client.force_authenticate(user=self.admin)
+
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -27,8 +38,10 @@ class UserViewSetTestCase(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['username'], 'testuser')
+        self.assertEqual(len(response.data), 2)  # admin + testuser
+        usernames = [user['username'] for user in response.data]
+        self.assertIn('testuser', usernames)
+        self.assertIn('admin', usernames)
 
     def test_retrieve_user(self):
         """Test GET /api/users/{id}/ - Get user details."""
@@ -55,7 +68,7 @@ class UserViewSetTestCase(APITestCase):
         response = self.client.post(url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(User.objects.count(), 2)
+        self.assertEqual(User.objects.count(), 3)  # admin + testuser + newuser
         new_user = User.objects.get(username='newuser')
         self.assertEqual(new_user.email, 'newuser@example.com')
         self.assertTrue(new_user.check_password('securepass123'))
@@ -96,7 +109,37 @@ class UserViewSetTestCase(APITestCase):
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(User.objects.count(), 0)
+        self.assertEqual(User.objects.count(), 1)  # Only admin remains
+
+    def test_non_admin_cannot_access(self):
+        """Test that non-admin users cannot access user endpoints."""
+        # Create a non-admin user
+        passenger = User.objects.create_user(
+            username='passenger1',
+            email='passenger@example.com',
+            first_name='Pass',
+            last_name='Enger',
+            role='passenger',
+            password='pass123'
+        )
+
+        # Authenticate as non-admin
+        self.client.force_authenticate(user=passenger)
+
+        url = '/api/users/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_cannot_access(self):
+        """Test that unauthenticated users cannot access user endpoints."""
+        # Remove authentication
+        self.client.force_authenticate(user=None)
+
+        url = '/api/users/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class RideViewSetTestCase(APITestCase):
@@ -106,6 +149,17 @@ class RideViewSetTestCase(APITestCase):
         """Set up test data."""
         # Clear cache to avoid stale count data
         cache.clear()
+
+        self.admin = User.objects.create_user(
+            username='admin',
+            email='admin@example.com',
+            first_name='Admin',
+            last_name='User',
+            role='admin',
+            password='admin123'
+        )
+
+        self.client.force_authenticate(user=self.admin)
 
         self.rider = User.objects.create_user(
             username='rider1',
@@ -343,12 +397,43 @@ class RideViewSetTestCase(APITestCase):
         for ride in response.data['results']:
             self.assertEqual(ride['status'], 'pickup')
 
+    def test_non_admin_cannot_access(self):
+        """Test that non-admin users cannot access ride endpoints."""
+        # Authenticate as non-admin
+        self.client.force_authenticate(user=self.rider)
+
+        url = '/api/rides/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_cannot_access(self):
+        """Test that unauthenticated users cannot access ride endpoints."""
+        # Remove authentication
+        self.client.force_authenticate(user=None)
+
+        url = '/api/rides/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class RideEventViewSetTestCase(APITestCase):
     """Test cases for RideEventViewSet API endpoints."""
 
     def setUp(self):
         """Set up test data."""
+        self.admin = User.objects.create_user(
+            username='admin',
+            email='admin@example.com',
+            first_name='Admin',
+            last_name='User',
+            role='admin',
+            password='admin123'
+        )
+
+        self.client.force_authenticate(user=self.admin)
+
         rider = User.objects.create_user(
             username='rider1',
             email='rider@example.com',
@@ -459,3 +544,33 @@ class RideEventViewSetTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(RideEvent.objects.all_unfiltered().count(), 0)
+
+    def test_non_admin_cannot_access(self):
+        """Test that non-admin users cannot access ride event endpoints."""
+        # Create a non-admin user
+        passenger = User.objects.create_user(
+            username='passenger1',
+            email='passenger@example.com',
+            first_name='Pass',
+            last_name='Enger',
+            role='passenger',
+            password='pass123'
+        )
+
+        # Authenticate as non-admin
+        self.client.force_authenticate(user=passenger)
+
+        url = '/api/ride-events/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_cannot_access(self):
+        """Test that unauthenticated users cannot access ride event endpoints."""
+        # Remove authentication
+        self.client.force_authenticate(user=None)
+
+        url = '/api/ride-events/'
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
