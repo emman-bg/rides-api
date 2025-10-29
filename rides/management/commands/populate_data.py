@@ -48,40 +48,74 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f'Created {len(rides)} Ride instances'))
 
-        # Create 50 RideEvent instances
-        event_descriptions = [
-            'Ride requested',
-            'Driver assigned',
-            'Driver en route to pickup',
-            'Driver arrived at pickup',
-            'Passenger picked up',
-            'En route to destination',
-            'Arrived at destination',
-            'Ride completed',
-            'Payment processed',
-            'Driver cancelled',
-            'Passenger cancelled',
-            'Route changed',
-            'Traffic delay',
-            'Waiting for passenger',
-        ]
-
+        # Create RideEvent instances for each ride
+        # Each ride will have a sequence of events including 'Status changed to pickup' and 'Status changed to dropoff'
         ride_events = []
-        for i in range(50):
-            # Associate each event with a random ride
-            ride = random.choice(rides)
 
-            # Create event with timestamp relative to ride's pickup_time
-            # Events should be created around the ride time
-            time_offset = random.randint(-60, 120)  # -60 to +120 minutes from pickup
+        for ride in rides:
+            # Create event sequence for this ride
+            base_time = ride.pickup_time
 
-            ride_event = RideEvent.objects.create(
+            # Event 1: Ride requested (before pickup time)
+            event1 = RideEvent.objects.create(
                 id_ride=ride,
-                description=random.choice(event_descriptions),
+                description='Ride requested',
             )
-            ride_events.append(ride_event)
+            # Manually set created_at to be before pickup
+            RideEvent.objects.filter(id_ride_event=event1.id_ride_event).update(
+                created_at=base_time - timedelta(minutes=random.randint(15, 30))
+            )
+            ride_events.append(event1)
+
+            # Event 2: Driver assigned
+            event2 = RideEvent.objects.create(
+                id_ride=ride,
+                description='Driver assigned',
+            )
+            RideEvent.objects.filter(id_ride_event=event2.id_ride_event).update(
+                created_at=base_time - timedelta(minutes=random.randint(10, 20))
+            )
+            ride_events.append(event2)
+
+            # Event 3: Status changed to pickup (critical for SQL query)
+            event3 = RideEvent.objects.create(
+                id_ride=ride,
+                description='Status changed to pickup',
+            )
+            RideEvent.objects.filter(id_ride_event=event3.id_ride_event).update(
+                created_at=base_time
+            )
+            ride_events.append(event3)
+
+            # Event 4: Status changed to dropoff (critical for SQL query)
+            # Randomly make some trips > 1 hour for the SQL query to return results
+            if random.random() < 0.4:  # 40% of trips will be > 1 hour
+                trip_duration_minutes = random.randint(65, 180)  # 65 minutes to 3 hours
+            else:
+                trip_duration_minutes = random.randint(10, 55)  # 10-55 minutes
+
+            event4 = RideEvent.objects.create(
+                id_ride=ride,
+                description='Status changed to dropoff',
+            )
+            RideEvent.objects.filter(id_ride_event=event4.id_ride_event).update(
+                created_at=base_time + timedelta(minutes=trip_duration_minutes)
+            )
+            ride_events.append(event4)
+
+            # Event 5: Ride completed
+            event5 = RideEvent.objects.create(
+                id_ride=ride,
+                description='Ride completed',
+            )
+            RideEvent.objects.filter(id_ride_event=event5.id_ride_event).update(
+                created_at=base_time + timedelta(minutes=trip_duration_minutes + random.randint(1, 5))
+            )
+            ride_events.append(event5)
 
         self.stdout.write(self.style.SUCCESS(f'Created {len(ride_events)} RideEvent instances'))
+        self.stdout.write(self.style.SUCCESS(f'  - Each of the 50 rides has 5 events'))
+        self.stdout.write(self.style.SUCCESS(f'  - ~40% of trips are over 1 hour for analytics'))
         self.stdout.write(self.style.SUCCESS('Data population completed successfully!'))
 
     def _create_users(self, role, count):

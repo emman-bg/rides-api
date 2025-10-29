@@ -532,6 +532,122 @@ The toolbar is only available when `DEBUG=True`.
 - **Port**: 5432 (exposed for local access)
 - **Volume**: `postgres_data` (persistent storage)
 
+## Analytics & Reporting Queries
+
+### Trips Over 1 Hour Report
+
+This raw SQL query summarizes trips that took more than 1 hour from pickup to dropoff, grouped by month and driver.
+
+**Output Format:**
+- **Month**: Date formatted as YYYY-MM
+- **Driver**: Driver name formatted as "FirstName L." (first name + first letter of last name)
+- **Trips > 1hr**: Total count of trips exceeding 1 hour
+
+**SQL Query:**
+```sql
+SELECT
+    TO_CHAR(DATE_TRUNC('month', pickup_events.created_at), 'YYYY-MM') AS month,
+    CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') AS driver,
+    COUNT(*) AS trips_over_1hr
+FROM rides_ride r
+INNER JOIN rides_user u ON r.id_driver = u.id_user
+INNER JOIN rides_rideevent pickup_events ON r.id_ride = pickup_events.id_ride
+    AND pickup_events.description = 'Status changed to pickup'
+INNER JOIN rides_rideevent dropoff_events ON r.id_ride = dropoff_events.id_ride
+    AND dropoff_events.description = 'Status changed to dropoff'
+WHERE
+    (dropoff_events.created_at - pickup_events.created_at) > INTERVAL '1 hour'
+GROUP BY
+    DATE_TRUNC('month', pickup_events.created_at),
+    u.first_name,
+    u.last_name
+ORDER BY
+    month DESC,
+    trips_over_1hr DESC;
+```
+
+**How to Run:**
+
+Using Django shell:
+```bash
+docker compose exec rides-api python manage.py shell
+```
+
+```python
+from django.db import connection
+
+query = """
+SELECT
+    TO_CHAR(DATE_TRUNC('month', pickup_events.created_at), 'YYYY-MM') AS month,
+    CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') AS driver,
+    COUNT(*) AS trips_over_1hr
+FROM rides_ride r
+INNER JOIN rides_user u ON r.id_driver = u.id_user
+INNER JOIN rides_rideevent pickup_events ON r.id_ride = pickup_events.id_ride
+    AND pickup_events.description = 'Status changed to pickup'
+INNER JOIN rides_rideevent dropoff_events ON r.id_ride = dropoff_events.id_ride
+    AND dropoff_events.description = 'Status changed to dropoff'
+WHERE
+    (dropoff_events.created_at - pickup_events.created_at) > INTERVAL '1 hour'
+GROUP BY
+    DATE_TRUNC('month', pickup_events.created_at),
+    u.first_name,
+    u.last_name
+ORDER BY
+    month DESC,
+    trips_over_1hr DESC;
+"""
+
+with connection.cursor() as cursor:
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    for row in rows:
+        print(f"Month: {row[0]}, Driver: {row[1]}, Trips > 1hr: {row[2]}")
+```
+
+Or directly in PostgreSQL:
+```bash
+docker compose exec db psql -U superuser -d db -c "
+SELECT
+    TO_CHAR(DATE_TRUNC('month', pickup_events.created_at), 'YYYY-MM') AS month,
+    CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') AS driver,
+    COUNT(*) AS trips_over_1hr
+FROM rides_ride r
+INNER JOIN rides_user u ON r.id_driver = u.id_user
+INNER JOIN rides_rideevent pickup_events ON r.id_ride = pickup_events.id_ride
+    AND pickup_events.description = 'Status changed to pickup'
+INNER JOIN rides_rideevent dropoff_events ON r.id_ride = dropoff_events.id_ride
+    AND dropoff_events.description = 'Status changed to dropoff'
+WHERE
+    (dropoff_events.created_at - pickup_events.created_at) > INTERVAL '1 hour'
+GROUP BY
+    DATE_TRUNC('month', pickup_events.created_at),
+    u.first_name,
+    u.last_name
+ORDER BY
+    month DESC,
+    trips_over_1hr DESC;
+"
+```
+
+**Expected Output:**
+```
+   month   |     driver      | trips_over_1hr
+-----------+-----------------+----------------
+ 2025-10   | John D.         |             15
+ 2025-10   | Sarah M.        |             12
+ 2025-09   | John D.         |             18
+ 2025-09   | Mike R.         |              8
+```
+
+**Notes:**
+- This query relies on RideEvent descriptions being "Status changed to pickup" and "Status changed to dropoff"
+- Only counts trips where both events exist for the same ride
+- Time difference is calculated between the `created_at` timestamps of the two events
+- Results are ordered by month (most recent first), then by trip count (highest first)
+- The `populate_data` management command creates rides with these exact event descriptions
+- Approximately 40% of populated trips will be over 1 hour for meaningful analytics
+
 ## Security Notes
 
 - **Production Deployment**: This is a development setup. For production:
