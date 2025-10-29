@@ -1,0 +1,66 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: rides_db
+          POSTGRES_USER: rides_user
+          POSTGRES_PASSWORD: rides_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create .env file
+      run: |
+        echo "SECRET_KEY=test-secret-key-for-github-actions-only" > .env
+        echo "DEBUG=True" >> .env
+        echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> .env
+        echo "DB_ENGINE=django.db.backends.postgresql" >> .env
+        echo "DB_NAME=rides_db" >> .env
+        echo "DB_USER=rides_user" >> .env
+        echo "DB_PASSWORD=rides_password" >> .env
+        echo "DB_HOST=localhost" >> .env
+        echo "DB_PORT=5432" >> .env
+
+    - name: Run migrations
+      run: |
+        python manage.py migrate
+
+    - name: Run tests
+      run: |
+        python manage.py test rides
+
+    - name: Test summary
+      if: always()
+      run: |
+        echo "Tests completed!"
