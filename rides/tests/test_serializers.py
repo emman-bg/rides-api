@@ -310,9 +310,9 @@ class RideListSerializerTestCase(TestCase):
         serializer = RideListSerializer(self.ride)
         data = serializer.data
 
-        self.assertIn('events', data)
-        self.assertEqual(len(data['events']), 2)
-        self.assertEqual(data['events'][0]['description'], 'Driver en route')  # Most recent first
+        self.assertIn('todays_ride_events', data)
+        self.assertEqual(len(data['todays_ride_events']), 2)
+        self.assertEqual(data['todays_ride_events'][0]['description'], 'Driver en route')  # Most recent first
 
     def test_ride_list_includes_essential_fields(self):
         """Test that only essential fields are included."""
@@ -325,7 +325,7 @@ class RideListSerializerTestCase(TestCase):
         self.assertIn('id_rider', data)
         self.assertIn('id_driver', data)
         self.assertIn('pickup_time', data)
-        self.assertIn('events', data)
+        self.assertIn('todays_ride_events', data)
 
         # Should NOT include (not lightweight)
         self.assertNotIn('pickup_latitude', data)
